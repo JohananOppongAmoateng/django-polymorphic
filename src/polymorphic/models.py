@@ -73,9 +73,30 @@ class PolymorphicModel(models.Model, metaclass=PolymorphicModelBase):
         # field to figure out the real class of this object
         # (used by PolymorphicQuerySet._get_real_instances)
         if not self.polymorphic_ctype_id:
-            self.polymorphic_ctype = ContentType.objects.db_manager(using).get_for_model(
+            # Get the ContentType for this model using the specified database.
+            # get_for_model uses a cache and get_or_create internally.
+            ctype = ContentType.objects.db_manager(using).get_for_model(
                 self, for_concrete_model=False
             )
+            
+            # Verify the ContentType exists in the target database to prevent
+            # foreign key constraint errors due to cached ContentTypes from other databases.
+            # This is particularly important in multi-database setups and parallel tests
+            # where the global ContentType cache may contain IDs that don't exist
+            # in the target database.
+            try:
+                # Explicitly query the target database to ensure the ContentType exists
+                ctype = ContentType.objects.db_manager(using).get(
+                    app_label=ctype.app_label,
+                    model=ctype.model
+                )
+            except ContentType.DoesNotExist:
+                # If it doesn't exist, get_for_model will create it in the target database
+                ctype = ContentType.objects.db_manager(using).get_for_model(
+                    self, for_concrete_model=False
+                )
+            
+            self.polymorphic_ctype = ctype
 
     pre_save_polymorphic.alters_data = True
 
