@@ -73,28 +73,19 @@ class PolymorphicModel(models.Model, metaclass=PolymorphicModelBase):
         # field to figure out the real class of this object
         # (used by PolymorphicQuerySet._get_real_instances)
         if not self.polymorphic_ctype_id:
-            # Get the ContentType for this model using the specified database.
-            # get_for_model uses a cache and get_or_create internally.
-            ctype = ContentType.objects.db_manager(using).get_for_model(
-                self, for_concrete_model=False
-            )
+            # Determine the model to get the ContentType for.
+            # for_concrete_model=False means we want the ContentType for the actual
+            # model class, not the concrete base class.
+            model = self.__class__
             
-            # Verify the ContentType exists in the target database to prevent
-            # foreign key constraint errors due to cached ContentTypes from other databases.
-            # This is particularly important in multi-database setups and parallel tests
-            # where the global ContentType cache may contain IDs that don't exist
-            # in the target database.
-            try:
-                # Explicitly query the target database to ensure the ContentType exists
-                ctype = ContentType.objects.db_manager(using).get(
-                    app_label=ctype.app_label,
-                    model=ctype.model
-                )
-            except ContentType.DoesNotExist:
-                # If it doesn't exist, get_for_model will create it in the target database
-                ctype = ContentType.objects.db_manager(using).get_for_model(
-                    self, for_concrete_model=False
-                )
+            # Get or create the ContentType directly from the target database.
+            # This avoids issues with the global ContentType cache containing IDs
+            # from different databases in multi-database setups or parallel tests.
+            # Using get_or_create ensures the ContentType exists in the target database.
+            ctype, created = ContentType.objects.db_manager(using).get_or_create(
+                app_label=model._meta.app_label,
+                model=model._meta.model_name,
+            )
             
             self.polymorphic_ctype = ctype
 
