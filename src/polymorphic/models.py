@@ -73,18 +73,15 @@ class PolymorphicModel(models.Model, metaclass=PolymorphicModelBase):
         # field to figure out the real class of this object
         # (used by PolymorphicQuerySet._get_real_instances)
         if not self.polymorphic_ctype_id:
-            # Determine the model to get the ContentType for.
-            # for_concrete_model=False means we want the ContentType for the actual
-            # model class, not the concrete base class.
-            model = self.__class__
-            
             # Get or create the ContentType directly from the target database.
             # This avoids issues with the global ContentType cache containing IDs
             # from different databases in multi-database setups or parallel tests.
             # Using get_or_create ensures the ContentType exists in the target database.
-            ctype, created = ContentType.objects.db_manager(using).get_or_create(
-                app_label=model._meta.app_label,
-                model=model._meta.model_name,
+            # for_concrete_model=False means we want the ContentType for the actual
+            # model class (self.__class__), not the concrete base class.
+            ctype, _ = ContentType.objects.db_manager(using).get_or_create(
+                app_label=self.__class__._meta.app_label,
+                model=self.__class__._meta.model_name,
             )
             
             self.polymorphic_ctype = ctype
