@@ -328,6 +328,57 @@ Restrictions & Caveats
     base row. If you must delete manually, ensure you also delete the corresponding row from the
     base table.
 
+
+Custom Metaclasses and Parent Links
+------------------------------------
+
+.. versionadded:: 4.5.1
+
+If you're using a custom metaclass that creates parent link fields with ``related_name='+'``,
+django-polymorphic automatically normalizes these fields to prevent migration churn.
+
+When a parent link field is created with ``related_name='+'``, it is automatically normalized to
+``related_name=None`` to match Django's behavior for auto-created parent links. This ensures that
+migrations don't continuously regenerate with unnecessary ``related_name='+'`` attributes.
+
+For example, if you have a custom metaclass like:
+
+.. code-block:: python
+
+    from django.db.models import OneToOneField, CASCADE
+    from polymorphic.models import PolymorphicModel, PolymorphicModelBase
+
+    class InheritedModelMeta(PolymorphicModelBase):
+        def __new__(cls, model_name, bases, attrs, **kwargs):
+            # Add parent_link with related_name='+' to avoid namespace pollution
+            if bases and hasattr(bases[0], '_meta') and not bases[0]._meta.abstract:
+                link_name = f"{bases[0].__name__.lower()}_ptr"
+                attrs[link_name] = OneToOneField(
+                    bases[0],
+                    related_name="+",  # This will be normalized to None
+                    on_delete=CASCADE,
+                    parent_link=True,
+                    primary_key=True
+                )
+            return super().__new__(cls, model_name, bases, attrs, **kwargs)
+
+    class AssetModel(PolymorphicModel):
+        reference = models.CharField(max_length=100)
+
+    class RackModel(AssetModel, metaclass=InheritedModelMeta):
+        capacity = models.PositiveIntegerField()
+
+The ``related_name='+'`` on the parent link field will be automatically normalized to
+``related_name=None``, preventing Django from generating unnecessary migrations. The fields will
+serialize consistently with Django's auto-created parent links.
+
+This normalization:
+
+* Prevents migration churn when using custom metaclasses
+* Ensures consistent behavior with Django's auto-created parent links
+* Only affects parent link fields (fields with ``parent_link=True``)
+* Does not affect regular ForeignKey or OneToOneField relationships
+
 .. old links:
     - http://code.djangoproject.com/wiki/ModelInheritance
     - http://lazypython.blogspot.com/2009/02/second-look-at-inheritance-and.html

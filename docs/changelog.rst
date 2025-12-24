@@ -1,6 +1,14 @@
 Changelog
 =========
 
+v4.5.1 (Unreleased)
+-------------------
+
+* Fixed parent link field serialization in migrations. Parent link fields created with
+  ``related_name='+'`` are now normalized to ``related_name=None`` to match Django's
+  auto-created parent links. This prevents unnecessary migration generation when using
+  custom metaclasses that create parent link fields with ``related_name='+'``.
+
 v4.5.0 (2025-12-22)
 -------------------
 
