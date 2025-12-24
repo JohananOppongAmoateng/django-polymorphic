@@ -15,6 +15,7 @@ from django.core.management import call_command
 from django.db import models
 from django.test import TestCase, override_settings
 
+from polymorphic.base import PolymorphicModelBase
 from polymorphic.models import PolymorphicModel
 
 
@@ -37,7 +38,7 @@ class CustomMetaclassIntegrationTest(TestCase):
             class Meta:
                 app_label = "integration_test"
 
-        class InheritedModelMeta(type(PolymorphicModel)):
+        class InheritedModelMeta(PolymorphicModelBase):
             """Custom metaclass that creates parent link with related_name='+'"""
 
             def __new__(cls, model_name, bases, attrs, **kwargs):

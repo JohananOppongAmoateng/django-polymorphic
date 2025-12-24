@@ -345,8 +345,10 @@ For example, if you have a custom metaclass like:
 
 .. code-block:: python
 
+    from django.db import models
     from django.db.models import OneToOneField, CASCADE
-    from polymorphic.models import PolymorphicModel, PolymorphicModelBase
+    from polymorphic.base import PolymorphicModelBase
+    from polymorphic.models import PolymorphicModel
 
     class InheritedModelMeta(PolymorphicModelBase):
         def __new__(cls, model_name, bases, attrs, **kwargs):
