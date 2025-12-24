@@ -79,10 +79,20 @@ class PolymorphicModelBase(ModelBase):
         # wrap on_delete handlers of reverse relations back to this model with the
         # polymorphic deletion guard
         for fk in new_class._meta.fields:
-            if isinstance(fk, (models.ForeignKey, models.OneToOneField)) and not isinstance(
-                fk.remote_field.on_delete, PolymorphicGuard
-            ):
-                fk.remote_field.on_delete = PolymorphicGuard(fk.remote_field.on_delete)
+            if isinstance(fk, (models.ForeignKey, models.OneToOneField)):
+                if not isinstance(fk.remote_field.on_delete, PolymorphicGuard):
+                    fk.remote_field.on_delete = PolymorphicGuard(fk.remote_field.on_delete)
+                
+                # Normalize parent link fields with related_name='+' to related_name=None
+                # This prevents migration churn by ensuring parent links serialize consistently
+                # with Django's auto-created parent links
+                if (
+                    isinstance(fk, models.OneToOneField)
+                    and fk.remote_field.parent_link
+                    and fk.remote_field.related_name == "+"
+                ):
+                    fk.remote_field.related_name = None
+                    fk._related_name = None
 
         return new_class
 
